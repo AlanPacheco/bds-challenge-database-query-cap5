@@ -1,7 +1,8 @@
 package com.devsuperior.movieflix.services;
 
 import com.devsuperior.movieflix.dto.MovieDTO;
-import com.devsuperior.movieflix.dto.MovieReviewDTO;
+import com.devsuperior.movieflix.dto.MovieMinDTO;
+import com.devsuperior.movieflix.dto.ReviewDTO;
 import com.devsuperior.movieflix.entities.Movie;
 import com.devsuperior.movieflix.entities.Review;
 import com.devsuperior.movieflix.repositories.MovieRepository;
@@ -16,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.persistence.EntityNotFoundException;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 public class MovieService {
@@ -34,25 +36,24 @@ public class MovieService {
     }
 
     @Transactional(readOnly = true)
-    public Page<MovieDTO> findPagedByGenreId(Long genreId, Pageable pageable) {
+    public Page<MovieMinDTO> findPagedByGenreId(Long genreId, Pageable pageable) {
+
         if (genreId == 0)
             genreId = null;
 
         Page<Movie> moviePage = movieRepository.searchMoviesByGenre(genreId, pageable);
-        Page<MovieDTO> movieDTOPage = moviePage.map(movie -> new MovieDTO(movie, movie.getGenre()));
+        Page<MovieMinDTO> movieMinDTOPage = moviePage.map(movie -> new MovieMinDTO(movie));
 
-        return movieDTOPage;
+        return movieMinDTOPage;
     }
 
     @Transactional(readOnly = true)
-    public MovieReviewDTO findMovieWithReviews(Long movieId) {
+    public List<ReviewDTO> findMovieWithReviews(Long movieId) {
         try {
-            MovieReviewDTO movieReviewDTO = new MovieReviewDTO(movieRepository.getOne(movieId));
             List<Review> reviews = reviewRepository.searchReviewByMovieId(movieId);
-            if (!reviews.isEmpty()) {
-                reviews.forEach(review -> movieReviewDTO.addReview(review));
-            }
-            return movieReviewDTO;
+            List<ReviewDTO> reviewDTOS = reviews.stream().map(review -> new ReviewDTO(review, review.getUser()))
+                    .collect(Collectors.toList());
+            return reviewDTOS;
         } catch (EntityNotFoundException error) {
             throw new ResourceNotFoundException("MovieId not found: " + movieId);
         }
